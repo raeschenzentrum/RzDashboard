@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dynamic Dashboard</title>
+    <style>
+        .row {
+            display: flex;
+            flex-direction: row;
+            margin-bottom: 20px;
+        }
+        .column {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-right: 10px;
+            text-align: center;
+        }
+        .column:last-child {
+            margin-right: 0;
+        }
+    </style>
+</head>
+<body>
+    <h7>(Dynamic Dashboard)</h7>
+
+    <!-- Dynamisches Layout für Zeilen und Spalten -->
+    {% for row in rows %}
+        <div class="row">
+            {% for column in row %}
+                <div id="{{ column.container_id }}" class="column">
+                    {% if column.chartType == "Table" %}
+                        {{ column.html_content | safe }}  <!-- HTML der Tabelle direkt rendern -->
+                    {% else %}
+                        <img src="{{ column.img_src }}" alt="{{ column.chartType }} Chart">
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endfor %}
+</body>
+</html>

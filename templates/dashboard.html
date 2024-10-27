@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dynamic Plot Tabs</title>
+    <style>
+        /* Tab-Styles */
+    </style>
+</head>
+<body>
+    <h1>DWH OPS Insights</h1>
+    <div class="tab">
+        {% for key, tab in tabs.items() %}
+            <button class="tablinks" onclick="openTab(event, '{{ key }}')">{{ key }}</button>
+        {% endfor %}
+    </div>
+
+    <!-- Tab-Inhalte dynamisch generieren -->
+    {% for key, tab in tabs.items() %}
+        <div id="{{ key }}" class="tabcontent">
+            <h3>{{ key }}</h3>
+            <div id="{{ tab.container_id }}">Loading {{ key }}...</div>
+        </div>
+    {% endfor %}
+
+    <script>
+        const tabsConfig = {{ tabs | tojson }};
+        
+        function openTab(evt, tabName) {
+            let tabcontent = document.getElementsByClassName("tabcontent");
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            let tablinks = document.getElementsByClassName("tablinks");
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+            loadData(tabName);
+        }
+
+        async function loadData(tabName) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in first');
+                window.location.href = '/login';
+                return;
+            }
+        
+            const tabConfig = tabsConfig[tabName];
+            const url = tabConfig.url;
+            const container = document.getElementById(tabConfig.container_id);
+
+        
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token  // Token wird korrekt angehängt
+                }
+            });
+        
+            if (response.ok) {
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    const data = await response.json();
+                    renderTable(data, container);
+                } else if (contentType && contentType.includes("text/html")) {
+                    const html = await response.text();
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = "Failed to load data.";
+                }
+            } else {
+                container.innerHTML = "Failed to load data.";
+            }
+        }
+        
+        
+        function renderTable(data, container) {
+            if (!data || data.rows.length === 0) {
+                container.innerHTML = "No data available.";
+                return;
+            }
+
+            const table = document.createElement("table");
+            const thead = table.createTHead();
+            const tbody = table.createTBody();
+
+            const headerRow = thead.insertRow();
+            for (const col of data.columns) {
+                const th = document.createElement("th");
+                th.textContent = col;
+                headerRow.appendChild(th);
+            }
+
+            for (const row of data.rows) {
+                const tr = tbody.insertRow();
+                for (const cell of row) {
+                    const td = tr.insertCell();
+                    td.textContent = cell;
+                }
+            }
+
+            container.innerHTML = "";
+            container.appendChild(table);
+        }
+    </script>
+
+    <!-- Tab-spezifisches JavaScript einbinden -->
+    {% for key, tab in tabs.items() if tab.jscript %}
+        <script src="{{ url_for('static', path='js/' ~ tab.jscript) }}"></script>
+    {% endfor %}
+</body>
+</html>

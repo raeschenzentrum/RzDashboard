@@ -1,0 +1,23 @@
+# Python-Build-Dateien ignorieren
+__pycache__/
+*.pyc
+*.pyo
+*.log
+
+# Virtuelle Umgebungen und bin/include/lib Verzeichnisse ignorieren
+bin/
+include/
+lib/
+lib64/
+pyvenv.cfg
+share/
+
+# Ignoriere andere, nicht benötigte Dateien/Ordner
+.env
+.venv
+.DS_Store
+.vscode/
+
+# YAML-Dateien, die nicht eingecheckt werden sollen, explizit hinzufügen
+# Zum Beispiel:
+# private_config.yaml
