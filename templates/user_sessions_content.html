@@ -1,0 +1,24 @@
+    {% if not data or not data.rows %}
+        <!-- Wenn data oder data.rows nicht existieren, zeige den Lade-Text an -->
+        No Data...
+    {% else %}
+        <!-- Wenn data existiert und data.rows gefüllt ist, zeige die Tabelle an -->
+        <table>
+            <thead>
+                <tr>
+                    {% for column in data.columns %}
+                        <th>{{ column }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data.rows %}
+                    <tr>
+                        {% for cell in row %}
+                            <td>{{ cell }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}

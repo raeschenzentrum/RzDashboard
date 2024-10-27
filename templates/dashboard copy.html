@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dynamic Plot Tabs</title>
+    <style>
+        .tab {
+            overflow: hidden;
+            border-bottom: 1px solid #ccc;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #ccc;
+        }
+        .tabcontent {
+            display: none;
+            padding: 20px;
+            border-top: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>Data Insights</h1>
+    <div class="tab">
+        <button class="tablinks" onclick="openTab(event, 'CreateKeyfiles')">Create Keys</button>
+        <button class="tablinks" onclick="openTab(event, 'DBSizes')">DB Sizes</button>
+        <button class="tablinks" onclick="openTab(event, 'UserSessions')">User Sessions</button>
+        <button class="tablinks" onclick="openTab(event, 'ODILoads')">ODI Loads</button>
+    </div>
+
+    <!-- Einbindung der Tab-Inhalte -->
+    {% include "create_keyfiles.html" %}
+    {% include "db_sizes.html" %}
+    {% include "user_sessions.html" %}  
+    {% include "odi_loads.html" %}
+    <script src="{{ url_for('static', path='js/create_keyfiles.js') }}"></script>
+
+    <script>
+        function openTab(evt, tabName) {
+            let i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+            loadData(tabName);  // Daten für den entsprechenden Tab laden
+        }
+
+        async function loadData(tabName) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in first');
+                window.location.href = '/login';
+                return;
+            }
+
+            let url;
+            let container;
+            if (tabName === 'CreateKeyfiles') {
+                url = '/create_keyfiles';
+                container = document.getElementById('create-keyfiles-container');
+            } else if (tabName === 'DBSizes') {
+                url = '/fetch_data?query=DBSizes';
+                container = document.getElementById('db-sizes-container');
+            } else if (tabName === 'UserSessions') {
+                url = '/fetch_data?query=UserSessions';
+                container = document.getElementById('user-sessions-container');
+            } else if (tabName === 'ODILoads') {
+                url = '/fetch_data?query=ODILoads';
+                container = document.getElementById('odi-loads-container');
+            }
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            });
+
+            if (response.ok) {
+                const contentType = response.headers.get("content-type");
+                console.log("Content-Type:", contentType);                
+                if (contentType && contentType.includes("application/json")) {
+                    const data = await response.json();
+                    renderTable(data, container);
+                } else if (contentType && contentType.includes("text/html")) {
+                    const html = await response.text();
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = "Failed to load data.";
+                }
+            } else {
+                console.error('Failed to load data:', response.statusText);
+                container.innerHTML = "Failed to load data.";
+            }
+        }
+
+ 
+    </script>
+
+</body>
+</html>

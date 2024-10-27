@@ -1,0 +1,42 @@
+<script>
+    async function submitCreateKeyfilesForm(event) {  // async hinzugefügt
+        event.preventDefault();  // Verhindert das Neuladen der Seite
+        const form = document.getElementById('keyfileForm');
+        const formData = new FormData(form);
+
+        try {
+            const response = await fetch('/create_keyfiles', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const resultContainer = document.getElementById('create-keyfiles-result');
+
+            if (response.ok) {
+                const html = await response.text();
+                resultContainer.innerHTML = html;
+            } else {
+                resultContainer.innerHTML = "Keyfile creation failed.";
+            }
+        } catch (error) {
+            console.error("Error during form submission:", error);
+        }
+    }
+</script>
+<form id="keyfileForm" onsubmit="submitCreateKeyfilesForm(event)">
+    <label for="tduser">DB User:</label>
+    <input type="text" id="tduser" name="tduser" required autocomplete="username"><br><br>
+
+    <label for="tdpwd">Password:</label>
+    <input type="password" id="tdpwd" name="tdpwd" required autocomplete="current-password"><br><br>
+
+    <label for="system">System:</label>
+    <select id="system" name="system" required>
+        {% for system in systems %}
+            <option value="{{ system }}">{{ system }}</option>
+        {% endfor %}
+    </select><br><br>
+
+    <button type="submit">Create Keyfiles</button>
+</form>
+<div id="create-keyfiles-result"></div>
