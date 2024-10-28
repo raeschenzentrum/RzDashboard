@@ -9,6 +9,24 @@ import teradatasql
 from datetime import date, datetime
 #from keyfiles import get_tdenv
 import config 
+import pandas as pd
+
+def fetch_data_as_dataframe(query, system, user):
+    """
+    Führt eine Abfrage auf der Teradata-Datenbank aus und gibt das Ergebnis als pandas DataFrame zurück.
+    
+    :param query: Die SQL-Abfrage, die auf der Datenbank ausgeführt werden soll
+    :param system: Das Teradata-System, mit dem eine Verbindung hergestellt werden soll
+    :param user: Der Benutzername für die Datenbankverbindung
+    :return: Ein pandas DataFrame mit dem Abfrageergebnis
+    """
+    # Direkter Aufruf der Funktion `get_connection_with_keyfiles`, die bereits in db.py existiert
+    with get_connection_with_keyfiles(system, user).cursor() as cursor:
+        cursor.execute(query)
+        columns = [desc[0] for desc in cursor.description]
+        data = cursor.fetchall()
+        return pd.DataFrame(data, columns=columns)
+
 
 # Funktion zum Entschlüsseln des Passworts
 def decrypt_password(encrypted_password, iv, key, mac, mac_key):
@@ -104,3 +122,5 @@ if __name__ == "__main__":
         print(result)
     except Exception as e:
         print(f"Error: {e}")
+
+

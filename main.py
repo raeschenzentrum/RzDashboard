@@ -10,6 +10,7 @@ import base64
 import sys
 import os
 from pathlib import Path
+from dml import manipulate_data
 
 # Dynamisch das Hauptverzeichnis hinzufügen
 project_root = Path(__file__).resolve().parent.parent
@@ -33,9 +34,18 @@ templates = Jinja2Templates(directory="app/templates")
 # Statische Dateien einbinden
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+
+@app.get("/manipulate", response_class=HTMLResponse)
+async def manipulate():
+    # Führt die Datenmanipulation aus dml.py aus
+    manipulate_data()
+    return HTMLResponse(content="<h2>Data manipulation completed successfully.</h2>", status_code=200)
 # Konfigurationsdaten laden
-tabs_config = config.config['queries']
+tabs_config = config.config['tabs']
 # HTML login page with JavaScript for authentication
+
+from dml import manipulate_data
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
@@ -167,17 +177,7 @@ def render_chart2(data, chart_type):
     plt.close()
     buf.seek(0)
     return base64.b64encode(buf.getvalue()).decode("utf-8")
-import io
-import base64
-import matplotlib.pyplot as plt
 
-import io
-import base64
-import matplotlib.pyplot as plt
-
-import io
-import base64
-import matplotlib.pyplot as plt
 
 def render_chart(data, chart_type_config):
     print("data:", data)
@@ -218,149 +218,72 @@ def render_chart(data, chart_type_config):
     return base64.b64encode(buf.read()).decode("utf-8")
 
 
-def render_chart_looft2(data, chart_type_config):
-    print ("data:",data)
-    # Nehme an, dass die erste Spalte die Labels und die zweite Spalte die Werte enthält
-    labels = [row[0] for row in data]
-    values = [row[1] for row in data]
-    # print("chart_type_config:", chart_type_config)
-    chart_type = chart_type_config["Chart"]["ChartType"]
-
-    plt.figure(figsize=(10, 6))  # Größere Abmessungen für längere Labels
-
-    if chart_type == "Bar":
-        orientation = chart_type_config["Chart"].get("orientation", "horizontal")
-        color = chart_type_config["Chart"].get("color", "skyblue")
-        bar_width = chart_type_config["Chart"].get("bar_width", 0.8)
-
-        if orientation == "horizontal":
-            plt.barh(labels, values, color=color, height=bar_width)
-            plt.xlabel("Values")
-            plt.ylabel("Labels")
-            plt.subplots_adjust(left=0.3, right=0.95)  # Mehr Platz links für Labels
-        else:
-            plt.bar(labels, values, color=color, width=bar_width)
-            plt.ylabel("Values")
-            plt.xlabel("Labels")
-            plt.xticks(rotation=45, ha="right")  # Labels schräg setzen für mehr Lesbarkeit
-            plt.subplots_adjust(bottom=0.3, top=0.95)  # Mehr Platz unten für Labels
-
-    elif chart_type == "Pie":
-        plt.pie(values, labels=labels, autopct='%1.1f%%', startangle=140)
-
-    buf = io.BytesIO()
-    plt.savefig(buf, format="png", bbox_inches="tight")  # `bbox_inches` schneidet unnötige Ränder weg
-    plt.close()
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode("utf-8")
-
-
-def render_chart_looft(data, chart_type_config):
-    # Nehme an, dass die erste Spalte die Labels und die zweite Spalte die Werte enthält
-    labels = [row[0] for row in data]
-    values = [row[1] for row in data]
-    # print("chart_type_config:",chart_type_config)
-    chart_type = chart_type_config["Chart"]["ChartType"]
-
-    plt.figure()
-    if chart_type == "Bar":
-        orientation = chart_type_config["Chart"].get("orientation", "horizontal")
-        # orientation =chart_type_config["Chart"]["orientation"]
-        color = chart_type_config["Chart"].get("color", "skyblue")
-        bar_width = chart_type_config["Chart"].get("bar_width", 0.8)
-
-        if orientation == "horizontal":
-            plt.barh(labels, values, color=color, height=bar_width)
-            plt.xlabel("Values")
-            plt.ylabel("Labels")
-        else:
-            plt.bar(labels, values, color=color, width=bar_width)
-            plt.ylabel("Values")
-            plt.xlabel("Labels")
-        plt.xticks(rotation=45)  # Optional: Labels schräg setzen
-    elif chart_type == "Pie":
-        plt.pie(values, labels=labels, autopct='%1.1f%%', startangle=140)
-
-    buf = io.BytesIO()
-    plt.savefig(buf, format="png")
-    plt.close()
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode("utf-8")
-
-
-# def render_chart(data, chart_type_config):
-#     labels, values = zip(*data)
-#     chart_type = chart_type_config["type"]
-
-#     plt.figure()
-#     if chart_type == "Bar":
-#         orientation = chart_type_config.get("orientation", "horizontal")
-#         color = chart_type_config.get("color", "skyblue")
-#         bar_width = chart_type_config.get("bar_width", 0.8)
-
-#         if orientation == "horizontal":
-#             plt.barh(labels, values, color=color, height=bar_width)
-#             plt.xlabel("Values")
-#             plt.ylabel("Labels")
-#         else:
-#             plt.bar(labels, values, color=color, width=bar_width)
-#             plt.ylabel("Values")
-#             plt.xlabel("Labels")
-#         plt.xticks(rotation=45)  # Optional: Labels schräg setzen
-#     elif chart_type == "Pie":
-#         plt.pie(values, labels=labels, autopct='%1.1f%%', startangle=140)
-
-#     buf = io.BytesIO()
-#     plt.savefig(buf, format="png")
-#     plt.close()
-#     buf.seek(0)
-#     return base64.b64encode(buf.read()).decode("utf-8")
-
-
-# def render_chart(data, chart_type):
-#     plt.figure(figsize=(6, 4))
-
-#     labels = [row[0] for row in data]
-#     values = [float(row[1]) for row in data]  # Werte in Float konvertieren
-
-
-#     if chart_type == "Bar":
-#         plt.bar(labels, values)
-#         plt.xticks(rotation=20, ha="right")  # Rotation und Ausrichtung setzen
-#     elif chart_type == "Pie":
-#         plt.pie(values, labels=labels, autopct='%1.1f%%', startangle=140)
-
-
-
-#     # Speicher das Bild als Base64-encoded string
-#     buf = io.BytesIO()
-#     plt.savefig(buf, format="png")
-#     plt.close()
-#     buf.seek(0)
-#     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 def render_table(data):
-    # Wenn `data` leer ist, gib eine Meldung zurück
+    # Überprüfen, ob `data` leer ist
     if not data or 'columns' not in data or 'rows' not in data:
         return "<p>No data available.</p>"
 
     try:
+        # CSS-Styles für die Tabelle
+        table_html = """
+        <style>
+            table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                font-family: Arial, sans-serif;
+            }
+            th, td {
+                padding: 8px;
+                text-align: left;
+                border: 1px solid #ddd;
+            }
+            th {
+                background-color: #f2f2f2;
+                font-weight: bold;
+            }
+            tr:nth-child(even) {
+                background-color: #f9f9f9;
+            }
+            .color-circle {
+                display: inline-block;
+                width: 15px;
+                height: 15px;
+                border-radius: 50%;
+            }
+        </style>
+        """
+        
         # HTML-Tabelle erstellen
-        table_html = "<table><thead><tr>"
-        # Spaltenüberschriften aus dem `columns`-Schlüssel holen
-        for header in data['columns']:
+        table_html += "<table><thead><tr>"
+        
+        # Prüfen, ob `config_color` in den Spalten vorhanden ist
+        color_column_index = None
+        for i, header in enumerate(data['columns']):
             table_html += f"<th>{header}</th>"
+            if header == 'config_color':
+                color_column_index = i
         table_html += "</tr></thead><tbody>"
 
-        # Zeilen aus dem `rows`-Schlüssel holen
+        # Zeilen und Zellen einfügen
         for row in data['rows']:
             table_html += "<tr>"
-            for cell in row:
-                table_html += f"<td>{cell if cell is not None else ''}</td>"  # None-Werte als leeren String anzeigen
+            for i, cell in enumerate(row):
+                # Wenn `config_color`-Spalte, Farbkodierung hinzufügen
+                if i == color_column_index:
+                    color = cell if cell else "#FFFFFF"  # Standardfarbe Weiß, falls keine Farbe vorhanden ist
+                    table_html += f"<td><span class='color-circle' style='background-color:{color};'></span></td>"
+                else:
+                    # Normalzellen ohne Farbkodierung
+                    table_html += f"<td>{cell if cell is not None else ''}</td>"
             table_html += "</tr>"
 
         table_html += "</tbody></table>"
         return table_html
+    
+    except Exception as e:
+        return f"<p>Error generating table: {str(e)}</p>"
+
 
     except (IndexError, AttributeError, TypeError) as e:
         # Bei Fehlern eine Meldung anzeigen und Fehler loggen
