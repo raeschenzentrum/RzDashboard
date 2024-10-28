@@ -95,10 +95,54 @@ dashboards:
               bar_width: 0.5             # Optional: Balkenbreite
             url: "/fetch_data?query=DashBoard"
             sql: |
-              SELECT TRIM(DatabaseName) AS DatabaseName, SUM(CurrentPerm)/1024/1024 AS DatabaseSize_MB
-              FROM DBC.AllSpace WHERE DatabaseName NOT IN ('DBC')
-              GROUP BY DatabaseName HAVING DatabaseSize_MB > 10 ORDER BY DatabaseSize_MB DESC
-            system: "TD1720"
+              WITH 
+              PRLA_Base AS (
+                  SELECT 
+                      DATE AS Datum,
+                      CURRENT_TIMESTAMP(6) AS DatumUndZeitAktuell,
+                      (CURRENT_TIMESTAMP(6) - CAST(PRLA.PRLA_StartDZ AS TIMESTAMP(6))) DAY(4) TO SECOND AS Differenz_Tag_Std_Min,
+                      PRLA.PRLA_ProzessLauf,
+                      PRLA.PROZ_Prozess,
+                      PRLA.PRLA_StartDZ,
+                      PRLA.PRLA_ProzessStatus,
+                      PRLA.PRLA_Fehlernummer,
+                      PROZ.PROZ_ProzessName,
+                          CASE 
+                      WHEN (CURRENT_TIMESTAMP(6) - PRLA.PRLA_StartDZ) DAY(4) TO SECOND > INTERVAL '8' HOUR THEN 'red'
+                      WHEN (CURRENT_TIMESTAMP(6) - PRLA.PRLA_StartDZ) DAY(4) TO SECOND > INTERVAL '4' HOUR THEN 'yellow'
+                      WHEN (CURRENT_TIMESTAMP(6) - PRLA.PRLA_StartDZ) DAY(4) TO SECOND > INTERVAL '30' MINUTE THEN 'green'
+                      ELSE 'blue' -- Default if none of the conditions are met
+                  END AS config_color
+                  FROM DEVOPS_CONTROL.PRLA_ProzessLauf PRLA
+                  INNER JOIN DEVOPS_CONTROL.PROZ_Prozess PROZ
+                      ON PRLA.PROZ_Prozess = PROZ.PROZ_Prozess
+                  WHERE PRLA.PROZ_Prozess NOT IN (31, 32)
+              ),
+              PRLA_Status2 AS (
+                  SELECT * 
+                  FROM PRLA_Base 
+                  WHERE PRLA_ProzessStatus >= 2
+              ),
+              PRLA_Status3 AS (
+                  SELECT * 
+                  FROM PRLA_Base 
+                  WHERE PRLA_ProzessStatus >= 3
+                  QUALIFY ROW_NUMBER() OVER (ORDER BY PRLA_StartDZ DESC) = 1
+              )
+              SELECT 
+                  drv1.PROZ_Prozessname
+                  ,drv1.Differenz_Tag_Std_Min
+                  ,drv1.config_color
+                  ,drv1.PRLA_ProzessStatus
+              FROM (
+                  SELECT * 
+                  FROM PRLA_Status2
+                  UNION ALL
+                  SELECT * 
+                  FROM PRLA_Status3
+              ) drv1
+              ORDER BY 2 ASC;
+            system: "TD1710"
             user: "dbc"
       - rownbr: 2  # Neue Zeile für eine Tabelle
         columns:

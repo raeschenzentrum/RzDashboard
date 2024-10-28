@@ -95,7 +95,7 @@ async def fetch_data(query: str, request: Request, current_user: str = Depends(g
         return templates.TemplateResponse(template_name_content, {"request": request, "data": data})
 
 def render_chart_response(data, request):
-    print(data)
+    # print(data)
     if not data:
         raise HTTPException(status_code=404, detail="No data found")
 
@@ -167,12 +167,99 @@ def render_chart2(data, chart_type):
     plt.close()
     buf.seek(0)
     return base64.b64encode(buf.getvalue()).decode("utf-8")
+import io
+import base64
+import matplotlib.pyplot as plt
+
+import io
+import base64
+import matplotlib.pyplot as plt
+
+import io
+import base64
+import matplotlib.pyplot as plt
 
 def render_chart(data, chart_type_config):
+    print("data:", data)
+    # Erste Spalte als Labels, zweite als Werte, optionale dritte als Farben
+    labels = [row[0] for row in data]
+    values = [row[1] for row in data]
+    colors = [row[2] if len(row) > 2 and row[2] else chart_type_config["Chart"].get("color", "skyblue") for row in data]
+
+    chart_type = chart_type_config["Chart"]["ChartType"]
+    plt.figure(figsize=(10, 6))  # Größere Abmessungen für längere Labels
+
+    if chart_type == "Bar":
+        orientation = chart_type_config["Chart"].get("orientation", "horizontal")
+        bar_width = chart_type_config["Chart"].get("bar_width", 0.8)
+
+        if orientation == "horizontal":
+            # Verwende die `colors`-Liste für jede Farbe
+            for i in range(len(labels)):
+                plt.barh(labels[i], values[i], color=colors[i], height=bar_width)
+            plt.xlabel("Values")
+            plt.ylabel("Labels")
+            plt.subplots_adjust(left=0.3, right=0.95)  # Mehr Platz links für Labels
+        else:
+            for i in range(len(labels)):
+                plt.bar(labels[i], values[i], color=colors[i], width=bar_width)
+            plt.ylabel("Values")
+            plt.xlabel("Labels")
+            plt.xticks(rotation=45, ha="right")  # Labels schräg setzen für mehr Lesbarkeit
+            plt.subplots_adjust(bottom=0.3, top=0.95)  # Mehr Platz unten für Labels
+
+    elif chart_type == "Pie":
+        plt.pie(values, labels=labels, autopct='%1.1f%%', startangle=140)
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", bbox_inches="tight")  # `bbox_inches` schneidet unnötige Ränder weg
+    plt.close()
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode("utf-8")
+
+
+def render_chart_looft2(data, chart_type_config):
+    print ("data:",data)
     # Nehme an, dass die erste Spalte die Labels und die zweite Spalte die Werte enthält
     labels = [row[0] for row in data]
     values = [row[1] for row in data]
-    print("chart_type_config:",chart_type_config)
+    # print("chart_type_config:", chart_type_config)
+    chart_type = chart_type_config["Chart"]["ChartType"]
+
+    plt.figure(figsize=(10, 6))  # Größere Abmessungen für längere Labels
+
+    if chart_type == "Bar":
+        orientation = chart_type_config["Chart"].get("orientation", "horizontal")
+        color = chart_type_config["Chart"].get("color", "skyblue")
+        bar_width = chart_type_config["Chart"].get("bar_width", 0.8)
+
+        if orientation == "horizontal":
+            plt.barh(labels, values, color=color, height=bar_width)
+            plt.xlabel("Values")
+            plt.ylabel("Labels")
+            plt.subplots_adjust(left=0.3, right=0.95)  # Mehr Platz links für Labels
+        else:
+            plt.bar(labels, values, color=color, width=bar_width)
+            plt.ylabel("Values")
+            plt.xlabel("Labels")
+            plt.xticks(rotation=45, ha="right")  # Labels schräg setzen für mehr Lesbarkeit
+            plt.subplots_adjust(bottom=0.3, top=0.95)  # Mehr Platz unten für Labels
+
+    elif chart_type == "Pie":
+        plt.pie(values, labels=labels, autopct='%1.1f%%', startangle=140)
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", bbox_inches="tight")  # `bbox_inches` schneidet unnötige Ränder weg
+    plt.close()
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode("utf-8")
+
+
+def render_chart_looft(data, chart_type_config):
+    # Nehme an, dass die erste Spalte die Labels und die zweite Spalte die Werte enthält
+    labels = [row[0] for row in data]
+    values = [row[1] for row in data]
+    # print("chart_type_config:",chart_type_config)
     chart_type = chart_type_config["Chart"]["ChartType"]
 
     plt.figure()
@@ -291,7 +378,7 @@ def render_table(data):
 @app.get("/dashboard/{board_name}", response_class=HTMLResponse)
 async def dynamic_dashboard(request: Request, board_name: str):
     dashboard_config = config.config["dashboards"].get(board_name)
-    print ("dashboard_config",dashboard_config)
+    # print ("dashboard_config",dashboard_config)
     # chart_type_config = dashboard_config["ChartType"]
     # print ("chart_type_config",dashboard_config.get("ChartType"))
     # dashboard_config = config.config["dashboards"].get(board_name)
@@ -307,7 +394,7 @@ async def dynamic_dashboard(request: Request, board_name: str):
         for column_config in row_config["columns"]:
             chart_type = column_config["Chart"]["ChartType"]  # Chart-Typ extrahieren
         
-            print ("column_config:",column_config)
+            # print ("column_config:",column_config)
             if chart_type== "Table":
                 # Tabellendaten abrufen und als HTML rendern
                 data = fetch_data_dynamically(
@@ -317,7 +404,7 @@ async def dynamic_dashboard(request: Request, board_name: str):
                 )
                 # print (data)
                 table_html = render_table(data)
-                print (table_html)
+                # print (table_html)
                 # print (table_html)
                 row_data.append({
                     "chartType": chart_type,
