@@ -46,6 +46,7 @@ def decrypt_password(encrypted_password, iv, key, mac, mac_key):
 
 # Funktion zum Lesen der Schlüssel- und Passwortdateien
 def read_keyfiles(system, user):
+    print(f"Reading keyfiles for {user} on {system}")
     # LOGON_DIR = os.path.join(Path.home(), ".keys")
     LOGON_DIR = config.get_logon_dir()
     key_file = os.path.join(LOGON_DIR, f"{user}-{system}-key.json")

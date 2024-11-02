@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dynamic Plot Tabs</title>
+    <title>DWH OPS Insights</title>
     <style>
         /* Tab-Styles */
     </style>
@@ -105,10 +105,11 @@
             container.appendChild(table);
         }
     </script>
-
+    <script src="{{ url_for('static', path='js/sendDashboardEmail.js') }}"></script>
     <!-- Tab-spezifisches JavaScript einbinden -->
     {% for key, tab in tabs.items() if tab.jscript %}
         <script src="{{ url_for('static', path='js/' ~ tab.jscript) }}"></script>
     {% endfor %}
+
 </body>
 </html>

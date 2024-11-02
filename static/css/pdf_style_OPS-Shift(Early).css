@@ -1,0 +1,10 @@
+@page {
+    size: A4 ; /* Querformat für A4 */
+    margin: 1cm; /* Seitenränder anpassen */
+}
+
+body {
+    transform: scale(0.3); /* Passt den Maßstab an */
+    transform-origin: top left;
+    width: 100%; /* Sicherstellen, dass Breite angepasst wird */
+}

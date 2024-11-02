@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, Form
+from fastapi import FastAPI, Depends, HTTPException, Request, Form, Query, BackgroundTasks
+
+
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -8,9 +10,13 @@ import matplotlib.pyplot as plt
 import io
 import base64
 import sys
-import os
+# import os
 from pathlib import Path
+# from libraries.comm import send_dashboard_pdf_smtp
+# import concurrent.futures
+
 from dml import manipulate_data
+from libraries.comm import send_dashboard_pdf_smtp,create_dashboard_mail
 
 # Dynamisch das Hauptverzeichnis hinzufügen
 project_root = Path(__file__).resolve().parent.parent
@@ -34,6 +40,29 @@ templates = Jinja2Templates(directory="app/templates")
 # Statische Dateien einbinden
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+with open("app/settings.yaml", "r") as f:
+    service = yaml.safe_load(f)
+# Laden der Konfiguration aus setup.yaml
+
+@app.get("/sendmail_dashboard")
+async def send_dashboard_email(background_tasks: BackgroundTasks,
+    tab: str = Query(..., description="URL des Dashboards, das in PDF konvertiert wird"),
+    recipient_email: str = Query(..., description="Empfänger-E-Mail-Adresse"),
+    subject: str = Query("Dashboard PDF", description="Betreff der E-Mail"),
+    body: str = Query("Im Anhang findest du das aktuelle Dashboard als PDF.", description="Nachrichtentext")
+):
+    tab_info = tabs_config.get(tab)
+    # print ("tab_info:",tab_info)
+    if not tab_info:
+        return JSONResponse(content={"error": "Invalid tab"}, status_code=400)
+
+    # Extrahiere SQL, Template und System/User
+    dashboard_url = tab_info['url']
+    # create_dashboard_mail(dashboard_url=dashboard_url, recipient_email=recipient_email, subject=subject, body=body) 
+    background_tasks.add_task(
+        create_dashboard_mail,dashboard_url=dashboard_url, recipient_email=recipient_email, subject=subject, body=body) 
+
+    return {"message": "PDF-Erstellung im Hintergrund gestartet"}
 
 @app.get("/manipulate", response_class=HTMLResponse)
 async def manipulate():
@@ -43,7 +72,7 @@ async def manipulate():
 # Konfigurationsdaten laden
 tabs_config = config.config['tabs']
 # HTML login page with JavaScript for authentication
-
+# print("tabs_config:",tabs_config)
 from dml import manipulate_data
 
 @app.get("/login", response_class=HTMLResponse)
@@ -54,6 +83,7 @@ async def login_page(request: Request):
 # Dynamische Dashboard-Route
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
+    # print("request:",request)
     return templates.TemplateResponse("dashboard.html", {"request": request, "tabs": tabs_config})
 
 # Route zum Erstellen von Key- und Passwortdateien
@@ -69,20 +99,21 @@ async def create_keyfiles(tduser: str = Form(...), tdpwd: str = Form(...), syste
 
 # Dynamische Abfrage-Route
 @app.get("/fetch_data", response_class=HTMLResponse)
-async def fetch_data(query: str, request: Request, current_user: str = Depends(get_current_user)):
+async def fetch_data(tab: str, request: Request, current_user: str = Depends(get_current_user)):
     # Query aus der Konfiguration laden
-    query_info = tabs_config.get(query)
-    if not query_info:
-        return JSONResponse(content={"error": "Invalid query"}, status_code=400)
+    tab_info = tabs_config.get(tab)
+    # print ("tab_info:",tab_info)
+    if not tab_info:
+        return JSONResponse(content={"error": "Invalid tab"}, status_code=400)
 
     # Extrahiere SQL, Template und System/User
-    dashboard_type = query_info['type']
-    query_string = query_info['sql']
-    template_name = query_info['template']
-    database_system = query_info['system']
-    database_user = query_info['user']
+    dashboard_type = tab_info['type']
+    query_string = tab_info['sql']
+    template_name = tab_info['template']
+    database_system = tab_info['system']
+    database_user = tab_info['user']
     template_name_content = template_name.replace(".html", "_content.html")
-    print(query_string, database_system, database_user)
+    # print(query_string, database_system, database_user)
     # Abfrage je nach Konfiguration statisch oder dynamisch
     if dashboard_type == "Chart":
         data = fetch_data_static(query_string, database_system, database_user)
@@ -100,7 +131,7 @@ async def fetch_data(query: str, request: Request, current_user: str = Depends(g
         # print(template_name)
         # template_name = "user_sessions.html"
 
-        print("request:",request   )
+        # print("request:",request   )
         # print(templates.TemplateResponse(template_name, {"request": request, "data": data}).body)
         return templates.TemplateResponse(template_name_content, {"request": request, "data": data})
 
@@ -150,37 +181,13 @@ def render_chart_response(data, request):
         <img src="data:image/png;base64,{img_pie}" />
     </div>
     """
-    print("request:" ,request)
+    # print("request:" ,request)
     return HTMLResponse(content=html)
 
-# Funktion zum Erstellen von Diagrammen als Base64-Bilder
-def render_chart2(data, chart_type):
-    plt.figure(figsize=(6, 4))
-
-    labels = [row[0] for row in data]
-    values = [row[1] for row in data]
-
-    # Überprüfe und bereinige die Werte auf numerische Daten
-    try:
-        values = [float(value) for value in values]  # Konvertiere in float
-    except ValueError:
-        print("Fehlerhafte Werte in den Daten:", values)
-        return None  # Keine Rückgabe, wenn die Daten fehlerhaft sind
-
-    if chart_type == "Bar":
-        plt.bar(labels, values)
-    elif chart_type == "Pie":
-        plt.pie(values, labels=labels, autopct='%1.1f%%', startangle=140)
-
-    buf = io.BytesIO()
-    plt.savefig(buf, format="png")
-    plt.close()
-    buf.seek(0)
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
 def render_chart(data, chart_type_config):
-    print("data:", data)
+    # print("data:", data)
     # Erste Spalte als Labels, zweite als Werte, optionale dritte als Farben
     labels = [row[0] for row in data]
     values = [row[1] for row in data]
@@ -192,6 +199,7 @@ def render_chart(data, chart_type_config):
     if chart_type == "Bar":
         orientation = chart_type_config["Chart"].get("orientation", "horizontal")
         bar_width = chart_type_config["Chart"].get("bar_width", 0.8)
+        invert_x = chart_type_config["Chart"].get("invert_xaxis", "false")
 
         if orientation == "horizontal":
             # Verwende die `colors`-Liste für jede Farbe
@@ -200,6 +208,8 @@ def render_chart(data, chart_type_config):
             plt.xlabel("Values")
             plt.ylabel("Labels")
             plt.subplots_adjust(left=0.3, right=0.95)  # Mehr Platz links für Labels
+            if invert_x == "true":
+                plt.gca().invert_xaxis()
         else:
             for i in range(len(labels)):
                 plt.bar(labels[i], values[i], color=colors[i], width=bar_width)
@@ -346,18 +356,17 @@ async def dynamic_dashboard(request: Request, board_name: str):
         rows.append(row_data)
 
     # Template mit den erstellten Zeilen und Spalten rendern
-    return templates.TemplateResponse("dboard.html", {"request": request, "rows": rows})
+    return templates.TemplateResponse("dboard.html", {"request": request, "rows": rows, "board_name": board_name})
 
 
 
 # if __name__ == "__main__":
 #     uvicorn.run("app.main:app", host="0.0.0.0", port=8111, reload=True)
 
-# Laden der Konfiguration aus setup.yaml
-with open("app/settings.yaml", "r") as f:
-    service = yaml.safe_load(f)
+
 
 if __name__ == "__main__":
+    print("service_hostname",service["server"]["host"])
     uvicorn.run(
         "main:app",
         host=service["server"]["host"],

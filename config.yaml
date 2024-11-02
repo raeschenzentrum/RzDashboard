@@ -9,6 +9,7 @@ systems:
   CHBIT08: "tdthur01dev.szp.admin.ch"
   TD1720: "192.168.114.20"
   TD1710: "192.168.114.19"
+  smtp_server: "mail.webkeeper.ch"
 
 tabs:
   CreateKeyfiles:
@@ -23,7 +24,7 @@ tabs:
 
   DBSizes:
     type: "Chart"
-    url: "/fetch_data?query=DBSizes"
+    url: "/fetch_data?tab=DBSizes"
     sql: |
       SELECT TRIM(DatabaseName) AS DatabaseName, SUM(CurrentPerm)/1024/1024 AS DatabaseSize_MB
       FROM DBC.AllSpace 
@@ -40,7 +41,7 @@ tabs:
 
   UserSessions:
     type: "Table"
-    url: "/fetch_data?query=UserSessions"
+    url: "/fetch_data?tab=UserSessions"
     sql: "SELECT * FROM DBC.SessionInfoV ORDER BY LogonTime DESC"
     template: "user_sessions.html"
     system: "TD1720"
@@ -48,9 +49,19 @@ tabs:
     jscript: "user_sessions.js"
     container_id: "user-sessions-container"
 
+  UserSessions2:
+    type: "Table"
+    url: "/fetch_data?tab=UserSessions2"
+    sql: "SELECT * FROM DBC.SessionInfoV ORDER BY LogonTime DESC"
+    template: "user_sessions2.html"
+    system: "TD1720"
+    user: "dbc"
+    jscript: "user_sessions.js"
+    container_id: "user-sessions-container2"
+
   ODILoads:
     type: "Table"
-    url: "/fetch_data?query=ODILoads"
+    url: "/fetch_data?tab=ODILoads"
     sql: "SELECT LoadID, LoadName, StartTime, EndTime, Status FROM ODI.LoadHistory ORDER BY StartTime DESC"
     template: "odi_loads.html"
     system: "TD1720"
@@ -96,7 +107,7 @@ dashboards:
                       PROZ.PROZ_ProzessName,
                           CASE 
                       WHEN (CURRENT_TIMESTAMP(6) - PRLA.PRLA_StartDZ) DAY(4) TO SECOND > INTERVAL '16' HOUR THEN 'red'
-                      WHEN (CURRENT_TIMESTAMP(6) - PRLA.PRLA_StartDZ) DAY(4) TO SECOND > INTERVAL '12' HOUR THEN 'yellow'
+                      WHEN (CURRENT_TIMESTAMP(6) - PRLA.PRLA_StartDZ) DAY(4) TO SECOND > INTERVAL '12' HOUR THEN 'orange'
                       WHEN (CURRENT_TIMESTAMP(6) - PRLA.PRLA_StartDZ) DAY(4) TO SECOND > INTERVAL '510' MINUTE THEN 'green'
                       ELSE 'blue' -- Default if none of the conditions are met
                   END AS config_color
@@ -117,9 +128,9 @@ dashboards:
                   QUALIFY ROW_NUMBER() OVER (ORDER BY PRLA_StartDZ DESC) = 1
               )
               SELECT 
-                  drv1.PROZ_Prozessname
+                  drv1.config_color
+                  ,drv1.PROZ_Prozessname
                   ,drv1.Differenz_Tag_Std_Min
-                  ,drv1.config_color
                   ,drv1.PRLA_ProzessStatus
               FROM (
                   SELECT * 
@@ -128,7 +139,8 @@ dashboards:
                   SELECT * 
                   FROM PRLA_Status3
               ) drv1
-                ORDER BY 2 ASC;
+
+                ORDER BY 3 ASC;
             system: "TD1710"
             user: "dbc"
 
@@ -138,6 +150,7 @@ dashboards:
               orientation: "horizontal"  # Options für die Ausrichtung
               color: "blue"              # Optional: Farbe für Balken
               bar_width: 0.5             # Optional: Balkenbreite
+              invert_xaxis: "true"       # Optional: X-Achse invertieren
             url: "/fetch_data?query=DashBoard"
             sql: |
               WITH 
@@ -176,6 +189,7 @@ dashboards:
               )
               SELECT 
                   drv1.PROZ_Prozessname
+                  --,drv1.PRLA_StartDz StartZeit
                   ,drv1.Differenz_Tag_Std_Min
                   ,drv1.config_color
                   ,drv1.PRLA_ProzessStatus
@@ -189,6 +203,8 @@ dashboards:
               UNION ALL SELECT * FROM (SELECT 
                 'Current DatTime:'  || TO_CHAR(CURRENT_TIMESTAMP(6)) AS  PROZ_Prozessname
                 ,INTERVAL '0 00:00:00.000000' DAY TO SECOND  Differenz_Tag_Std_Min
+                --'Current DatTime:'  || TO_CHAR(CURRENT_TIMESTAMP(6)) AS  PROZ_Prozessname
+                --,CURRENT_TIMESTAMP(6)  StartZeit
                 ,'grey' config_color
                 ,0 PRLA_ProzessStatus
                 --,CURRENT_TIMESTAMP(6) AS PRLA_StartDZ 
@@ -196,7 +212,32 @@ dashboards:
               ORDER BY 2 ASC;
             system: "TD1710"
             user: "dbc"
+
       - rownbr: 2  # Neue Zeile für eine Tabelle
+        columns:
+          - columnnbr: 1
+            Chart: 
+              ChartType:  "Table"  # ChartType als "Table" festlegen
+            url: "/fetch_data?query=DashBoard"
+            sql: |
+              SELECT 'red' config_color, pfn.* FROM dbc.users pfn
+              WHERE ProfileName is Null
+              AND (
+              UserName LIKE 'A________'
+              OR UserName LIKE 'U________'
+              OR UserName LIKE 'X________' 
+              OR UserName LIKE 'A________\_ASTRA' ESCAPE ('\')
+              OR UserName LIKE 'A________\_BAG' ESCAPE ('\')
+              OR UserName LIKE 'A________\_ESTV' ESCAPE ('\')
+              OR UserName LIKE 'A________\_BAZG' ESCAPE ('\')
+              OR UserName LIKE 'DEV%' 
+              OR UserName LIKE 'ABNSL%'
+              )
+              ;
+            system: "TD1720"
+            user: "dbc"
+
+      - rownbr: 4  # Neue Zeile für eine Tabelle
         columns:
           - columnnbr: 1
             Chart: 
@@ -246,21 +287,7 @@ dashboards:
               GROUP BY DatabaseName HAVING DatabaseSize_MB > 10 ORDER BY DatabaseSize_MB DESC
             system: "TD1720"
             user: "dbc"
-      - rownbr: 4  # Neue Zeile für eine Tabelle
-        columns:
-          - columnnbr: 1
-            Chart: 
-              ChartType:  "Table"  # ChartType als "Table" festlegen
-            url: "/fetch_data?query=DashBoard"
-            sql: |
-              SELECT TRIM(DatabaseName) AS DatabaseName, 
-                    CreateTimeStamp, 
-                    LastAccessTimeStamp
-              FROM DBC.Databases
-              WHERE CreateTimeStamp >  date '2023-10-01'
-              ORDER BY LastAccessTimeStamp DESC
-            system: "TD1720"
-            user: "dbc"            
+            
   Example:
     type: "DashBoard"
     template: "dboard.html"

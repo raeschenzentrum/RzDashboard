@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dynamic Dashboard</title>
+    <title> {{ boardname }}</title>
     <style>
         .row {
             display: flex;
@@ -21,7 +21,11 @@
     </style>
 </head>
 <body>
-    <h7>(Dynamic Dashboard)</h7>
+
+
+
+    <h7>{{ boardname }}</h7>
+    <button onclick="sendDashboardEmail('{{ boardname }}')">E-Mail senden</button>
 
     <!-- Dynamisches Layout für Zeilen und Spalten -->
     {% for row in rows %}
@@ -37,5 +41,6 @@
             {% endfor %}
         </div>
     {% endfor %}
+
 </body>
 </html>

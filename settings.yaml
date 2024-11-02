@@ -2,13 +2,17 @@ server:
   host: "0.0.0.0"
   port: 8441
   reload: true
-  ssl_keyfile: "/etc/ssh/devops_key.pem" # Absoluter Pfad, hier den generierten key eintragen und in dem Pfad ablegen, Berechtigungen setzen mit chmod a+r /etc/ssh/devops_key.pem
+  ssl_keyfile: "/etc/ssh/devops_key_nopass.pem" # Absoluter Pfad, hier den generierten key eintragen und in dem Pfad ablegen, Berechtigungen setzen mit chmod a+r /etc/ssh/devops_key.pem
   ssl_certfile: "/etc/ssh/devops_cert.pem" # Absoluter Pfad, hier das generierte cert eintragen und in dem Pfad ablegen, Berechtigungen setzen mit chmod a+r /etc/ssh/devops_cert.pem
 
   # ssl_keyfile: "app/.ssl/key.pem"
   # ssl_certfile: "app/.ssl/cert.pem"
 
-
+smtp_server:
+  smtp_host: "mail.webkeeper.ch"
+  smtp_port: 465
+  smtp_user: "raesch@raesch.ch"
+  base_url: "https://devine:8441"
 
 directories:
   logon_dir: ".keys"  # Achtung Änderung hier erfolgt für alle user, .keys kann bleiben. Falls das globaö geädert werden soll, dann nur den Ordnernamen eintragen; wird relativ zu Path.home() gesetzt
